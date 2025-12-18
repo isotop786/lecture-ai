@@ -12,6 +12,7 @@ from pathlib import Path
 import boto3
 from pypdf import PdfReader
 import io
+from context import prompt
 
 # Load environment variables
 load_dotenv(override=True)
@@ -34,6 +35,7 @@ client = OpenAI()
 # Memory directory
 MEMORY_DIR = Path("../memory")
 MEMORY_DIR.mkdir(exist_ok=True)
+
 
 
 # Load personality details
@@ -125,6 +127,11 @@ async def chat(request: ChatRequest):
         text = page.extract_text()
         if text:
             pdf_text += text
+    
+    _prompt = prompt(pdf_text)
+
+     # Build messages for OpenAI
+    messages = [{"role": "system", "content": _prompt}]
 
     session_id = request.session_id or str(uuid.uuid4())
     conversation = load_conversation(session_id)
@@ -166,6 +173,8 @@ async def list_sessions():
                 "last_message": conversation[-1]["content"] if conversation else None
             })
     return {"sessions": sessions}
+
+
 
 
 if __name__ == "__main__":
