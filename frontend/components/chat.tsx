@@ -21,7 +21,7 @@ export default function Chat() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [key, setKey] = useState<string>('');
     const [action, setAction] = useState<string>("");
-    const [nextStep, setNextStep] = useState<string>("");
+    const [nextStep, setNextStep] = useState<string | null>(null);
 
 
     const scrollToBottom = () => {
@@ -189,7 +189,10 @@ const handleSubmit = async (e: React.FormEvent) => {
 
     return (
         <>
-        <div>
+        
+
+{nextStep === null && (
+    <div>
         <div className="grid w-full max-w-sm items-center gap-3">
         <Label htmlFor="picture">Selec lecture file</Label>
         <Input type="file"
@@ -266,6 +269,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 </div>
 )}
 </div>
+)}
 
             { nextStep === "next" && (
 
