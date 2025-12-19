@@ -4,6 +4,10 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User } from 'lucide-react';
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
+import ReactMarkdown from "react-markdown";
+
 
 
 interface Message {
@@ -72,7 +76,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   setNextStep("next");
 
    try {
-            const response = await fetch('http://localhost:8000/chat', {
+            const response = await fetch('http://localhost:8000/chat2', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -229,8 +233,8 @@ const handleSubmit = async (e: React.FormEvent) => {
       <input
         type="radio"
         name="action"
-        value="mcq"
-        checked={action === "mcq"}
+        value="at least 20 mcqs"
+        checked={action === "at least 20 mcqs"}
         onChange={(e) => setAction(e.target.value)}
         className="h-4 w-4 text-slate-700 focus:ring-slate-600"
         disabled={isLoading}
@@ -245,14 +249,29 @@ const handleSubmit = async (e: React.FormEvent) => {
       <input
         type="radio"
         name="action"
-        value="flashcard"
-        checked={action === "flashcard"}
+        value="brainstorm"
+        checked={action === "brainstorm"}
         onChange={(e) => setAction(e.target.value)}
         className="h-4 w-4 text-slate-700 focus:ring-slate-600"
         disabled={isLoading}
       />
       <span className="text-gray-800 text-sm">
-        🧠 Flashcards
+        🧠 Brainstroming
+      </span>
+    </label>
+
+    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+      <input
+        type="radio"
+        name="action"
+        value="analyze"
+        checked={action === "analyze"}
+        onChange={(e) => setAction(e.target.value)}
+        className="h-4 w-4 text-slate-700 focus:ring-slate-600"
+        disabled={isLoading}
+      />
+      <span className="text-gray-800 text-sm">
+        Analyze lecture
       </span>
     </label>
 
@@ -315,7 +334,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                                     : 'bg-white border border-gray-200 text-gray-800'
                             }`}
                         >
-                            <p className="whitespace-pre-wrap">{message.content}</p>
+                            {/* <p className="whitespace-pre-wrap">{message.content}</p> */}
+                            
+                              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                                  {message.content}
+                              </ReactMarkdown>
+                         
                             <p
                                 className={`text-xs mt-1 ${
                                     message.role === 'user' ? 'text-slate-300' : 'text-gray-500'

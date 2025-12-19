@@ -68,6 +68,64 @@ def save_conversation(session_id: str, messages: List[Dict]):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(messages, f, indent=2, ensure_ascii=False)
 
+def optimizer_prompt(pdf_text: str, user_question: str) -> str:
+    return f"""
+You are an assistant answering questions strictly using the provided PDF content.
+
+PDF CONTENT:
+{pdf_text}
+
+USER QUESTION:
+{user_question}
+
+Rules:
+- Answer ONLY from the PDF
+- If the answer is not found, say: "Not found in the document"
+- Be concise and accurate
+"""
+
+def evaluator_prompt(pdf_text: str, user_question: str, draft_answer: str) -> str:
+    return f"""
+You are an evaluator reviewing an AI-generated answer.
+
+PDF CONTENT:
+{pdf_text}
+
+USER QUESTION:
+{user_question}
+
+DRAFT ANSWER:
+{draft_answer}
+
+Evaluate the draft based on:
+1. Accuracy vs PDF
+2. Completeness
+3. Clarity
+4. Hallucinations
+
+Return:
+- A brief critique
+- Clear suggestions for improvement
+"""
+
+def optimizer_refine_prompt(user_question: str, draft_answer: str, critique: str) -> str:
+    return f"""
+You are improving an answer based on evaluator feedback.
+
+USER QUESTION:
+{user_question}
+
+ORIGINAL ANSWER:
+{draft_answer}
+
+EVALUATOR FEEDBACK:
+{critique}
+
+Produce a final improved answer. Use heading and sub heading.
+"""
+
+
+
 
 # Request/Response models
 class ChatRequest(BaseModel):
@@ -127,11 +185,13 @@ async def chat(request: ChatRequest):
         text = page.extract_text()
         if text:
             pdf_text += text
+
+    print(pdf_text)
     
-    _prompt = prompt(pdf_text)
+    # _prompt = prompt(pdf_text)
 
      # Build messages for OpenAI
-    messages = [{"role": "system", "content": _prompt}]
+    messages = [{"role": "system", "content": prompt(pdf_text)}]
 
     session_id = request.session_id or str(uuid.uuid4())
     conversation = load_conversation(session_id)
@@ -155,6 +215,105 @@ async def chat(request: ChatRequest):
 
     return ChatResponse(
         response=assistant_response,
+        session_id=session_id
+    )
+
+
+
+@app.post("/chat2", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+
+    if not request.message:
+        raise HTTPException(status_code=400, detail="Message is required")
+
+    if not request.key:
+        raise HTTPException(status_code=400, detail="S3 key is required")
+
+    # ---------- Load PDF from S3 ----------
+    s3 = boto3.client(
+        "s3",
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region_name=os.getenv("AWS_REGION"),
+    )
+
+    bucket = os.getenv("S3_BUCKET_NAME")
+
+    try:
+        obj = s3.get_object(Bucket=bucket, Key=request.key)
+    except s3.exceptions.NoSuchKey:
+        raise HTTPException(status_code=404, detail="PDF not found in S3")
+
+    pdf_bytes = obj["Body"].read()
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+
+    pdf_text = ""
+    for page in reader.pages:
+        text = page.extract_text()
+        if text:
+            pdf_text += text + "\n"
+
+    if not pdf_text.strip():
+        raise HTTPException(status_code=400, detail="PDF has no readable text")
+
+    # ---------- Session Handling ----------
+    session_id = request.session_id or str(uuid.uuid4())
+    conversation = load_conversation(session_id)
+
+    # ---------- OPTIMIZER #1 (Draft Answer) ----------
+    draft_completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": optimizer_prompt(pdf_text, request.message)
+            }
+        ]
+    )
+
+    draft_answer = draft_completion.choices[0].message.content
+
+    # ---------- EVALUATOR ----------
+    evaluation_completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": evaluator_prompt(
+                    pdf_text,
+                    request.message,
+                    draft_answer
+                )
+            }
+        ]
+    )
+
+    critique = evaluation_completion.choices[0].message.content
+
+    # ---------- OPTIMIZER #2 (Final Answer) ----------
+    final_completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": optimizer_refine_prompt(
+                    request.message,
+                    draft_answer,
+                    critique
+                )
+            }
+        ]
+    )
+
+    final_answer = final_completion.choices[0].message.content
+
+    # ---------- Save Conversation ----------
+    conversation.append({"role": "user", "content": request.message})
+    conversation.append({"role": "assistant", "content": final_answer})
+    save_conversation(session_id, conversation)
+
+    return ChatResponse(
+        response=final_answer,
         session_id=session_id
     )
 
