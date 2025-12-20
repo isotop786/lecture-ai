@@ -15,7 +15,7 @@ interface Message {
     timestamp: Date;
 }
 
-type ActionType = 'summary' | 'at least 20 mcqs' | 'brainstorm' | 'analyze';
+type ActionType = 'summary' | 'at least 20 mcqs' | 'brainstorm' | 'deep analysis' | 'comprehensive questions with answers' | 'presentation';
 
 interface ActionOption {
     value: ActionType;
@@ -29,7 +29,9 @@ const ACTION_OPTIONS: ActionOption[] = [
     { value: 'summary', label: 'Summarize', icon: '📄', description: 'Get a concise overview' },
     { value: 'at least 20 mcqs', label: 'MCQ Quiz', icon: '✅', description: 'Test your knowledge' },
     { value: 'brainstorm', label: 'Brainstorm', icon: '💡', description: 'Explore ideas & concepts' },
-    { value: 'analyze', label: 'Deep Analysis', icon: '🔬', description: 'Detailed examination' },
+    { value: 'deep analysis', label: 'Deep Analysis', icon: '🔬', description: 'Detailed examination' },
+    { value: 'comprehensive questions with answers', label: 'Comprehensive Questions', icon: '📊', description: 'Comprehensive Questions' },
+    { value: 'presentation', label: 'Presentation', icon: '👩‍🏫', description: 'Presentation' },
 ];
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';

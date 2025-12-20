@@ -12,6 +12,8 @@ import boto3
 from pypdf import PdfReader
 import io
 from anthropic import Anthropic
+from guardrails import check_forbidden, check_pii
+
 
 # Load environment variables
 load_dotenv(override=True)
@@ -49,6 +51,47 @@ def save_conversation(session_id: str, messages: List[Dict]):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(messages, f, indent=2, ensure_ascii=False)
 
+# ================= ACADEMIC CHECK =================
+def looks_academic_structurally(text: str) -> bool:
+    markers = [
+        "abstract", "introduction", "methodology", "methods",
+        "results", "discussion", "conclusion", "references",
+        "bibliography", "chapter", "section", "figure", "table",
+        "doi", "et al."
+    ]
+    text_lower = text.lower()
+    score = sum(1 for m in markers if m in text_lower)
+    return score >= 3
+
+def is_academic_document_llm(pdf_text: str) -> bool:
+    check = claude.messages.create(
+        model="claude-3-haiku-20240307",
+        max_tokens=5,
+        system="Reply ONLY with YES or NO.",
+        messages=[{
+            "role": "user",
+            "content": [{
+                "type": "text",
+                "text": f"""
+DOCUMENT EXCERPT:
+{pdf_text[:3000]}
+
+Is this an academic or instructional document
+(e.g., university lecture, research paper, thesis, textbook)?
+
+Answer YES or NO.
+"""
+            }]
+        }]
+    )
+    return check.content[0].text.strip().upper() == "YES"
+
+def is_valid_academic_document(pdf_text: str) -> bool:
+    if not looks_academic_structurally(pdf_text):
+        return False
+    return is_academic_document_llm(pdf_text)
+
+
 # ---------- PROMPTS ----------
 
 def optimizer_prompt(pdf_text: str, user_question: str) -> str:
@@ -58,14 +101,6 @@ You are a STRICT document-grounded academic assistant.
 RULES (MUST FOLLOW):
 1. You may ONLY answer using information in the PDF.
 2. You may generate answers using information in the PDF.
-2.1 You may generate 20 multiple choice questions using information in the PDF.
-2.2 You may generate a quiz using information in the PDF.
-2.3 You may generate a presentation using information in the PDF.
-2.4 You may generate a report using information in the PDF.
-2.5 You may generate a comprehensive questions with answers using information in the PDF.
-2.6 You may generate a summary using information in the PDF.
-2.7 You may generate a brainstorm using information in the PDF.
-2.8 You may generate an analysis using information in the PDF.
 3. Do NOT answer general questions.
 4. Do NOT speculate.
 5. If answer not found in PDF, reply EXACTLY:
@@ -101,10 +136,18 @@ Evaluate:
 2. Completeness
 3. Clarity
 4. Hallucinations
+5. Relevance
+6. Use of headings and subheadings
+7. Use of bullet points and lists
+8. Use of proper grammar and punctuation
+9. Use of proper academic language
+10. Use of proper academic citations
+11. Off-topic answers (if any)
 
 Return:
 - A brief critique
 - Clear suggestions for improvement
+- Feedback on how to improve the answer
 """
 
 def optimizer_refine_prompt(user_question: str, draft_answer: str, critique: str) -> str:
@@ -126,7 +169,7 @@ Produce a final improved answer. Use headings and subheadings.
 # ---------- RELEVANCE CHECK ----------
 def is_question_relevant(pdf_text: str, question: str) -> bool:
     check = claude.messages.create(
-        model="claude-3-haiku-20240307",
+        model="claude-sonnet-4-5-20250929",
         max_tokens=5,
         system="Reply ONLY with YES or NO.",
         messages=[
@@ -141,13 +184,26 @@ PDF CONTENT:
 QUESTION:
 {question}
 
-Is the question directly answerable using the PDF?
+Is the request grounded in the PDF content, including:
+- summarization
+- brainstorming
+- discussion ideas
+- research questions
+- explanations
+- analysis
+- critique
+- educational tasks
+- any questions related to the uploaded document
+AND does NOT require external knowledge?
+
+Answer YES or NO.
 """
                 }]
             }
         ]
     )
     return check.content[0].text.strip().upper() == "YES"
+
 
 # ---------- POST-ANSWER VALIDATION ----------
 def answer_mentions_pdf(answer: str) -> bool:
@@ -167,7 +223,7 @@ class ChatResponse(BaseModel):
 # ---------- ROUTES ----------
 @app.get("/")
 async def root():
-    return {"message": "AI Digital Twin API with Memory"}
+    return {"message": "AI Digital Lecture Assistant with Memory"}
 
 @app.get("/health")
 async def health_check():
@@ -194,6 +250,7 @@ async def chat(request: ChatRequest):
     except s3.exceptions.NoSuchKey:
         raise HTTPException(status_code=404, detail="PDF not found in S3")
 
+
     pdf_bytes = obj["Body"].read()
     reader = PdfReader(io.BytesIO(pdf_bytes))
 
@@ -206,16 +263,38 @@ async def chat(request: ChatRequest):
     if not pdf_text.strip():
         raise HTTPException(status_code=400, detail="PDF has no readable text")
 
-    # ---------- GUARDRAIL: Pre-question relevance ----------
+    ### ---------- GUARDRAIL: Pre-question relevance ----------
     if not is_question_relevant(pdf_text, request.message):
         return ChatResponse(
             response="I can only answer questions related to the uploaded document.",
             session_id=request.session_id or str(uuid.uuid4())
         )
 
+    
+    if not is_valid_academic_document(pdf_text):
+        return ChatResponse(
+            response=(
+                "The uploaded document does not appear to be an academic or instructional document. "
+                "Please upload a university lecture, research paper, thesis, or textbook PDF."
+            ),
+            session_id=request.session_id or str(uuid.uuid4())
+        )
+
+
+
     # ---------- Session Handling ----------
     session_id = request.session_id or str(uuid.uuid4())
     conversation = load_conversation(session_id)
+
+    if check_forbidden(request.message):
+        return {
+            "reply": "I can’t help with that request"
+        }
+    if check_pii(request.message):
+        return {
+            "reply": "I can’t help with that request"
+        }
+
 
     # ---------- OPTIMIZER #1 (Draft Answer) ----------
     draft_completion = client.chat.completions.create(
@@ -249,8 +328,8 @@ async def chat(request: ChatRequest):
     final_answer = final_completion.choices[0].message.content
 
     # ---------- POST-ANSWER VALIDATION ----------
-    if not answer_mentions_pdf(final_answer):
-        final_answer = "I can only answer questions based on the uploaded document."
+    # if not answer_mentions_pdf(final_answer):
+    #     final_answer = "I can only answer questions based on the uploaded document."
 
     # ---------- Save Conversation ----------
     conversation.append({"role": "user", "content": request.message})
