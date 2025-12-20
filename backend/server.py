@@ -7,15 +7,11 @@ from dotenv import load_dotenv
 from typing import Optional, List, Dict
 import json
 import uuid
-from datetime import datetime
 from pathlib import Path
 import boto3
 from pypdf import PdfReader
 import io
-from context import prompt
 from anthropic import Anthropic
-
-
 
 # Load environment variables
 load_dotenv(override=True)
@@ -32,62 +28,61 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize OpenAI client
+# Initialize clients
 client = OpenAI()
-claude = Anthropic()
+claude = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 # Memory directory
 MEMORY_DIR = Path("../memory")
 MEMORY_DIR.mkdir(exist_ok=True)
 
-
-
-# Load personality details
-def load_personality():
-    with open("me.txt", "r", encoding="utf-8") as f:
-        return f.read().strip()
-
-# Load personality details
-def load_pdf():
-    with open("pdf.txt", "r", encoding="utf-8") as f:
-        return f.read().strip()
-
-
-PERSONALITY = load_personality()
-
-
 # Memory functions
 def load_conversation(session_id: str) -> List[Dict]:
-    """Load conversation history from file"""
     file_path = MEMORY_DIR / f"{session_id}.json"
     if file_path.exists():
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
     return []
 
-
 def save_conversation(session_id: str, messages: List[Dict]):
-    """Save conversation history to file"""
     file_path = MEMORY_DIR / f"{session_id}.json"
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(messages, f, indent=2, ensure_ascii=False)
 
+# ---------- PROMPTS ----------
+
 def optimizer_prompt(pdf_text: str, user_question: str) -> str:
     return f"""
-# Your Role
-You are an AI Agent that is acting as a digital teacher of University lecture for Masters and Phd students.
-You are chatting with a user who is chatting with you about a University lecture and you are trying to help them. Your goal is to represent University lecture as faithfully as possible;
+You are a STRICT document-grounded academic assistant.
+
+RULES (MUST FOLLOW):
+1. You may ONLY answer using information in the PDF.
+2. Do NOT use external knowledge.
+3. Do NOT answer general questions.
+4. Do NOT speculate.
+5. If answer not found in PDF, reply EXACTLY:
+"I can only answer questions based on the uploaded document."
+
+ALLOWED:
+- Summarizing sections of the PDF
+- Explaining PDF content
+- Answering questions whose answers appear in PDF
+
+DISALLOWED:
+- General knowledge
+- Opinions
+- Programming help
+- Life advice
 
 PDF CONTENT:
+------------------------------
 {pdf_text}
+------------------------------
 
 USER QUESTION:
 {user_question}
 
-Rules:
-- Answer ONLY from the PDF
-- If the answer is not found, say: "Not found in the document"
-- Be concise and accurate
+Answer concisely and academically.
 """
 
 def evaluator_prompt(pdf_text: str, user_question: str, draft_answer: str) -> str:
@@ -103,7 +98,7 @@ USER QUESTION:
 DRAFT ANSWER:
 {draft_answer}
 
-Evaluate the draft based on:
+Evaluate:
 1. Accuracy vs PDF
 2. Completeness
 3. Clarity
@@ -116,9 +111,7 @@ Return:
 
 def optimizer_refine_prompt(user_question: str, draft_answer: str, critique: str) -> str:
     return f"""
-# Your Role
-You are an AI Agent that is acting as a Senior teacher of University lecture for Masters and Phd students.
-You are improving an answer based on evaluator feedback.
+You are a Senior academic instructor improving an answer.
 
 USER QUESTION:
 {user_question}
@@ -129,111 +122,63 @@ ORIGINAL ANSWER:
 EVALUATOR FEEDBACK:
 {critique}
 
-Produce a final improved answer. Use heading and sub heading.
+Produce a final improved answer. Use headings and subheadings.
 """
 
+# ---------- RELEVANCE CHECK ----------
+def is_question_relevant(pdf_text: str, question: str) -> bool:
+    check = claude.messages.create(
+        model="claude-3-haiku-20240307",
+        max_tokens=5,
+        system="Reply ONLY with YES or NO.",
+        messages=[
+            {
+                "role": "user",
+                "content": [{
+                    "type": "text",
+                    "text": f"""
+PDF CONTENT:
+{pdf_text[:3000]}
 
+QUESTION:
+{question}
 
+Is the question directly answerable using the PDF?
+"""
+                }]
+            }
+        ]
+    )
+    return check.content[0].text.strip().upper() == "YES"
 
-# Request/Response models
+# ---------- POST-ANSWER VALIDATION ----------
+def answer_mentions_pdf(answer: str) -> bool:
+    keywords = ["document", "pdf", "section", "chapter", "according"]
+    return any(k in answer.lower() for k in keywords)
+
+# ---------- REQUEST / RESPONSE MODELS ----------
 class ChatRequest(BaseModel):
     message: Optional[str] = None
     session_id: Optional[str] = None
     key: Optional[str] = None
 
-
 class ChatResponse(BaseModel):
     response: str
     session_id: str
-  
 
-
+# ---------- ROUTES ----------
 @app.get("/")
 async def root():
     return {"message": "AI Digital Twin API with Memory"}
-
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-
-    if not request.message:
-        raise HTTPException(status_code=400, detail="Message is required")
-
-    if not request.key:
-        raise HTTPException(status_code=400, detail="S3 key is required")
-
-    # key = f"uploads/{request.key}"
-    key = request.key
-
-    print("key: "+key)
-
-    s3 = boto3.client(
-        "s3",
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.getenv("AWS_REGION"),
-    )
-
-    bucket = os.getenv("S3_BUCKET_NAME")
-
-    try:
-        obj = s3.get_object(Bucket=bucket, Key=key)
-    except s3.exceptions.NoSuchKey:
-        raise HTTPException(status_code=404, detail="PDF not found in S3")
-
-    pdf_bytes = obj["Body"].read()
-    reader = PdfReader(io.BytesIO(pdf_bytes))
-
-    pdf_text = ""
-    for page in reader.pages:
-        text = page.extract_text()
-        if text:
-            pdf_text += text
-
-    print(pdf_text)
-    
-    # _prompt = prompt(pdf_text)
-
-     # Build messages for OpenAI
-    messages = [{"role": "system", "content": prompt(pdf_text)}]
-
-    session_id = request.session_id or str(uuid.uuid4())
-    conversation = load_conversation(session_id)
-
-    messages = [{"role": "system", "content": pdf_text}]
-    messages.extend(conversation)
-    messages.append({"role": "user", "content": request.message})
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages
-    )
-
-    assistant_response = response.choices[0].message.content
-
-    
-
-    conversation.append({"role": "user", "content": request.message})
-    conversation.append({"role": "assistant", "content": assistant_response})
-    save_conversation(session_id, conversation)
-
-    return ChatResponse(
-        response=assistant_response,
-        session_id=session_id
-    )
-
-
-
 @app.post("/chat2", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-
     if not request.message:
         raise HTTPException(status_code=400, detail="Message is required")
-
     if not request.key:
         raise HTTPException(status_code=400, detail="S3 key is required")
 
@@ -244,7 +189,6 @@ async def chat(request: ChatRequest):
         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
         region_name=os.getenv("AWS_REGION"),
     )
-
     bucket = os.getenv("S3_BUCKET_NAME")
 
     try:
@@ -264,6 +208,13 @@ async def chat(request: ChatRequest):
     if not pdf_text.strip():
         raise HTTPException(status_code=400, detail="PDF has no readable text")
 
+    # ---------- GUARDRAIL: Pre-question relevance ----------
+    if not is_question_relevant(pdf_text, request.message):
+        return ChatResponse(
+            response="I can only answer questions related to the uploaded document.",
+            session_id=request.session_id or str(uuid.uuid4())
+        )
+
     # ---------- Session Handling ----------
     session_id = request.session_id or str(uuid.uuid4())
     conversation = load_conversation(session_id)
@@ -272,80 +223,36 @@ async def chat(request: ChatRequest):
     draft_completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {
-                "role": "system",
-                "content": optimizer_prompt(pdf_text, request.message)
-            }
+            {"role": "system", "content": optimizer_prompt(pdf_text, request.message)}
         ]
     )
-
     draft_answer = draft_completion.choices[0].message.content
 
     # ---------- EVALUATOR ----------
-    # evaluation_completion = client.chat.completions.create(
-    #     model="gpt-4o-mini",
-    #     messages=[
-    #         {
-    #             "role": "system",
-    #             "content": evaluator_prompt(
-    #                 pdf_text,
-    #                 request.message,
-    #                 draft_answer
-    #             )
-    #         }
-    #     ]
-    # )
-
-    # critique = evaluation_completion.choices[0].message.content
-
     evaluation_completion = claude.messages.create(
         model="claude-sonnet-4-5-20250929",
         max_tokens=1000,
-
         system=[
-            {
-                "type": "text",
-                "text": evaluator_prompt(
-                    pdf_text,
-                    request.message,
-                    draft_answer
-                )
-            }
+            {"type": "text", "text": evaluator_prompt(pdf_text, request.message, draft_answer)}
         ],
-
         messages=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "Please evaluate the draft answer."
-                    }
-                ]
-            }
+            {"role": "user", "content": [{"type": "text", "text": "Please evaluate the draft answer."}]}
         ]
     )
-
     critique = evaluation_completion.content[0].text
-
-
 
     # ---------- OPTIMIZER #2 (Final Answer) ----------
     final_completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {
-                "role": "user",
-                "content": optimizer_refine_prompt(
-                    request.message,
-                    draft_answer,
-                    critique
-                )
-            }
+            {"role": "user", "content": optimizer_refine_prompt(request.message, draft_answer, critique)}
         ]
     )
-
     final_answer = final_completion.choices[0].message.content
+
+    # ---------- POST-ANSWER VALIDATION ----------
+    if not answer_mentions_pdf(final_answer):
+        final_answer = "I can only answer questions based on the uploaded document."
 
     # ---------- Save Conversation ----------
     conversation.append({"role": "user", "content": request.message})
@@ -357,10 +264,8 @@ async def chat(request: ChatRequest):
         session_id=session_id
     )
 
-
 @app.get("/sessions")
 async def list_sessions():
-    """List all conversation sessions"""
     sessions = []
     for file_path in MEMORY_DIR.glob("*.json"):
         session_id = file_path.stem
@@ -373,9 +278,7 @@ async def list_sessions():
             })
     return {"sessions": sessions}
 
-
-
-
+# ---------- Run ----------
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

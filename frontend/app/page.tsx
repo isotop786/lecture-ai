@@ -47,10 +47,10 @@ export default function Home() {
           <footer className="mt-8 text-center">
             <div className="inline-flex flex-col items-center gap-2 px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-xl backdrop-blur-sm">
               <p className="text-sm text-gray-400">
-                Powered by Advanced AI Technology
+               Powered by Advanced AI Technology
               </p>
               <p className="text-xs text-gray-500">
-                &copy; {new Date().getFullYear()}  Lecture AI. Transform your learning experience.
+                &copy; {new Date().getFullYear()}  Lecture AI. Transform your learning experience. Developed by <a href="https://www.linkedin.com/in/maruful-islam-92b9b4308/" target="_blank" rel="noopener noreferrer">Maruf</a>
               </p>
             </div>
           </footer>
