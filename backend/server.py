@@ -13,6 +13,9 @@ import boto3
 from pypdf import PdfReader
 import io
 from context import prompt
+from anthropic import Anthropic
+
+
 
 # Load environment variables
 load_dotenv(override=True)
@@ -31,6 +34,7 @@ app.add_middleware(
 
 # Initialize OpenAI client
 client = OpenAI()
+claude = Anthropic()
 
 # Memory directory
 MEMORY_DIR = Path("../memory")
@@ -70,7 +74,9 @@ def save_conversation(session_id: str, messages: List[Dict]):
 
 def optimizer_prompt(pdf_text: str, user_question: str) -> str:
     return f"""
-You are an assistant answering questions strictly using the provided PDF content.
+# Your Role
+You are an AI Agent that is acting as a digital teacher of University lecture for Masters and Phd students.
+You are chatting with a user who is chatting with you about a University lecture and you are trying to help them. Your goal is to represent University lecture as faithfully as possible;
 
 PDF CONTENT:
 {pdf_text}
@@ -110,6 +116,8 @@ Return:
 
 def optimizer_refine_prompt(user_question: str, draft_answer: str, critique: str) -> str:
     return f"""
+# Your Role
+You are an AI Agent that is acting as a Senior teacher of University lecture for Masters and Phd students.
 You are improving an answer based on evaluator feedback.
 
 USER QUESTION:
@@ -274,28 +282,60 @@ async def chat(request: ChatRequest):
     draft_answer = draft_completion.choices[0].message.content
 
     # ---------- EVALUATOR ----------
-    evaluation_completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
+    # evaluation_completion = client.chat.completions.create(
+    #     model="gpt-4o-mini",
+    #     messages=[
+    #         {
+    #             "role": "system",
+    #             "content": evaluator_prompt(
+    #                 pdf_text,
+    #                 request.message,
+    #                 draft_answer
+    #             )
+    #         }
+    #     ]
+    # )
+
+    # critique = evaluation_completion.choices[0].message.content
+
+    evaluation_completion = claude.messages.create(
+        model="claude-sonnet-4-5-20250929",
+        max_tokens=1000,
+
+        system=[
             {
-                "role": "system",
-                "content": evaluator_prompt(
+                "type": "text",
+                "text": evaluator_prompt(
                     pdf_text,
                     request.message,
                     draft_answer
                 )
             }
+        ],
+
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Please evaluate the draft answer."
+                    }
+                ]
+            }
         ]
     )
 
-    critique = evaluation_completion.choices[0].message.content
+    critique = evaluation_completion.content[0].text
+
+
 
     # ---------- OPTIMIZER #2 (Final Answer) ----------
     final_completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {
-                "role": "system",
+                "role": "user",
                 "content": optimizer_refine_prompt(
                     request.message,
                     draft_answer,
