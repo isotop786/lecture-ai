@@ -139,7 +139,7 @@ export default function Chat() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message: `Please generate a ${selectedAction} for the uploaded PDF`,
+                    message: `Please generate a ${selectedAction} for the uploaded document`,
                     session_id: sessionId || undefined,
                     key: fileKey,
                 }),
@@ -233,7 +233,7 @@ export default function Chat() {
                                 <Sparkles className="w-10 h-10 text-white" />
                             </div>
                             <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent mb-2">
-                                Lecture AI
+                                MindHive AI
                             </h1>
                             <p className="text-gray-400 text-lg">
                                 Transform your lectures into insights
@@ -388,7 +388,7 @@ export default function Chat() {
 
             {/* Chat Step */}
             {currentStep === 'chat' && (
-                <div className="flex flex-col h-full max-w-5xl mx-auto w-full p-4">
+                <div className="flex flex-col h-full max-w-5xl mx-auto w-full">
                     <div className="flex flex-col h-full bg-gradient-to-br from-slate-800/90 to-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-700 overflow-hidden">
                         {/* Header */}
                         <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-cyan-700 text-white p-5">

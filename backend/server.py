@@ -92,6 +92,71 @@ def is_valid_academic_document(pdf_text: str) -> bool:
     return is_academic_document_llm(pdf_text)
 
 
+def extract_metadata(pdf_text: str) -> dict:
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": """
+You extract academic metadata from documents.
+
+RULES:
+- Use ONLY the provided text.
+- Do NOT guess.
+- If not found, return null.
+
+Return valid JSON ONLY.
+"""
+            },
+            {
+                "role": "user",
+                "content": f"""
+DOCUMENT TEXT:
+{pdf_text[:6000]}
+
+Extract:
+- instructor_name
+- institution_name
+- course_title
+- department
+
+JSON FORMAT:
+{{
+  "instructor_name": string | null,
+  "institution_name": string | null,
+  "course_title": string | null,
+  "department": string | null
+}}
+"""
+            }
+        ],
+        response_format={"type": "json_object"}
+    )
+
+    return json.loads(response.choices[0].message.content)
+
+
+def format_metadata(metadata: dict) -> str:
+    lines = []
+
+    if metadata.get("course_title"):
+        lines.append(f"📘 Course: {metadata['course_title']}")
+    if metadata.get("instructor_name"):
+        lines.append(f"👨‍🏫 Instructor: {metadata['instructor_name']}")
+    if metadata.get("institution_name"):
+        lines.append(f"🏛 Institution: {metadata['institution_name']}")
+    if metadata.get("department"):
+        lines.append(f"🏫 Department: {metadata['department']}")
+
+    if not lines:
+        return "No instructor or institution information was explicitly found in the document."
+
+    return "\n".join(lines)
+
+
+
+
 # ---------- PROMPTS ----------
 
 def optimizer_prompt(pdf_text: str, user_question: str) -> str:
@@ -164,6 +229,14 @@ EVALUATOR FEEDBACK:
 {critique}
 
 Produce a final improved answer. Use headings and subheadings.
+
+OUTPUT FORMAT MUST BE:
+Bullet points and lists
+Proper grammar and punctuation
+Proper academic language
+Use markdown formatting
+DO NOT MENTION THAT IT IS A IMPROVED ANSWER!
+
 """
 
 # ---------- RELEVANCE CHECK ----------
@@ -279,8 +352,9 @@ async def chat(request: ChatRequest):
             ),
             session_id=request.session_id or str(uuid.uuid4())
         )
-
-
+    
+    metadata = extract_metadata(pdf_text)
+    # formatted_metadata = format_metadata(metadata)
 
     # ---------- Session Handling ----------
     session_id = request.session_id or str(uuid.uuid4())
@@ -326,6 +400,16 @@ async def chat(request: ChatRequest):
         ]
     )
     final_answer = final_completion.choices[0].message.content
+
+    header = []
+    if metadata["course_title"]:
+        header.append(f"📘 Course: {metadata['course_title']}")
+    if metadata["instructor_name"]:
+        header.append(f"👨‍🏫 Instructor: {metadata['instructor_name']}")
+    if metadata["institution_name"]:
+        header.append(f"🏛 Institution: {metadata['institution_name']}")
+
+    final_answer = ("\n".join(header) + "\n\n" if header else "") + final_answer
 
     # ---------- POST-ANSWER VALIDATION ----------
     # if not answer_mentions_pdf(final_answer):

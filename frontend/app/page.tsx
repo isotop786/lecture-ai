@@ -14,11 +14,11 @@ export default function Home() {
             </div>
             <h1 className="text-5xl font-bold mb-3">
               <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
-                Lecture AI
+                MindHive
               </span>
             </h1>
             <p className="text-gray-400 text-lg mb-6">
-              Your AI-powered course companion
+              Your AI-powered knowledge companion
             </p>
             
             {/* Feature Pills */}
@@ -47,10 +47,10 @@ export default function Home() {
           <footer className="mt-8 text-center">
             <div className="inline-flex flex-col items-center gap-2 px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-xl backdrop-blur-sm">
               <p className="text-sm text-gray-400">
-               Powered by Advanced AI Technology
+               Powered by Advanced AI Technology.
               </p>
               <p className="text-xs text-gray-500">
-                &copy; {new Date().getFullYear()}  Lecture AI. Transform your learning experience. Developed by <a href="https://www.linkedin.com/in/maruful-islam-92b9b4308/" target="_blank" rel="noopener noreferrer">Maruf</a>
+                &copy; {new Date().getFullYear()}  MindHive AI. Transform your learning experience. Developed by <a href="https://www.linkedin.com/in/maruful-islam-92b9b4308/" target="_blank" rel="noopener noreferrer">Maruf</a>
               </p>
             </div>
           </footer>
