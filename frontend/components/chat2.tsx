@@ -399,7 +399,7 @@ export default function Chat() {
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-bold flex items-center gap-2">
-                                            Lecture AI
+                                            MindHive AI
                                         </h2>
                                         <p className="text-sm text-white/80 truncate max-w-md">
                                             {uploadedFileName}
