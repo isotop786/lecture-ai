@@ -31,7 +31,8 @@ app.add_middleware(
 )
 
 # Initialize clients
-client = OpenAI()
+# client = OpenAI()
+client = OpenAI(api_key=os.getenv("google_api_key"), base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
 claude = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 # Memory directory
@@ -74,7 +75,7 @@ def is_academic_document_llm(pdf_text: str) -> bool:
                 "type": "text",
                 "text": f"""
 DOCUMENT EXCERPT:
-{pdf_text[:3000]}
+{pdf_text[:5000]}
 
 Is this an academic or instructional document
 (e.g., university lecture, research paper, thesis, textbook)?
@@ -92,22 +93,62 @@ def is_valid_academic_document(pdf_text: str) -> bool:
     return is_academic_document_llm(pdf_text)
 
 
+# def extract_metadata(pdf_text: str) -> dict:
+#     response = client.chat.completions.create(
+#         # model="gpt-4o-mini",
+#         model="gemini-2.0-flash",
+#         messages=[
+#             {
+#                 "role": "system",
+#                 "content": """
+# You extract academic metadata from documents.
+
+# RULES:
+# - Use ONLY the provided text.
+# - Do NOT guess.
+# - If not found, return null.
+
+# Return valid JSON ONLY.
+# """
+#             },
+#             {
+#                 "role": "user",
+#                 "content": f"""
+# DOCUMENT TEXT:
+# {pdf_text[:6000]}
+
+# Extract:
+# - instructor_name
+# - institution_name
+# - course_title
+# - department
+
+# JSON FORMAT:
+# {{
+#   "instructor_name": string | null,
+#   "institution_name": string | null,
+#   "course_title": string | null,
+#   "department": string | null
+# }}
+# """
+#             }
+#         ],
+#         response_format={"type": "json_object"}
+#     )
+
+#     return json.loads(response.choices[0].message.content)
+
 def extract_metadata(pdf_text: str) -> dict:
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gemini-2.0-flash",
         messages=[
             {
                 "role": "system",
-                "content": """
-You extract academic metadata from documents.
-
-RULES:
-- Use ONLY the provided text.
-- Do NOT guess.
-- If not found, return null.
-
-Return valid JSON ONLY.
-"""
+                "content": (
+                    "Extract academic metadata from the document.\n"
+                    "Return ONE JSON OBJECT only (not an array).\n"
+                    "If a field is missing, use null."
+                )
             },
             {
                 "role": "user",
@@ -115,26 +156,28 @@ Return valid JSON ONLY.
 DOCUMENT TEXT:
 {pdf_text[:6000]}
 
-Extract:
+Return JSON with EXACT keys:
 - instructor_name
 - institution_name
 - course_title
 - department
-
-JSON FORMAT:
-{{
-  "instructor_name": string | null,
-  "institution_name": string | null,
-  "course_title": string | null,
-  "department": string | null
-}}
 """
             }
         ],
         response_format={"type": "json_object"}
     )
 
-    return json.loads(response.choices[0].message.content)
+    raw = json.loads(response.choices[0].message.content)
+
+    # 🔒 Normalize output
+    if isinstance(raw, list):
+        return raw[0] if raw else {}
+
+    if isinstance(raw, dict):
+        return raw
+
+    return {}
+
 
 
 def format_metadata(metadata: dict) -> str:
@@ -252,7 +295,7 @@ def is_question_relevant(pdf_text: str, question: str) -> bool:
                     "type": "text",
                     "text": f"""
 PDF CONTENT:
-{pdf_text[:3000]}
+{pdf_text}
 
 QUESTION:
 {question}
@@ -372,9 +415,11 @@ async def chat(request: ChatRequest):
 
     # ---------- OPTIMIZER #1 (Draft Answer) ----------
     draft_completion = client.chat.completions.create(
-        model="gpt-4o-mini",
+        # model="gpt-4o-mini",
+        model="gemini-2.0-flash",
         messages=[
-            {"role": "system", "content": optimizer_prompt(pdf_text, request.message)}
+            # {"role": "system", "content": optimizer_prompt(pdf_text, request.message)} # openai
+            {"role": "user", "content": optimizer_prompt(pdf_text, request.message)} # gemini
         ]
     )
     draft_answer = draft_completion.choices[0].message.content
@@ -394,7 +439,8 @@ async def chat(request: ChatRequest):
 
     # ---------- OPTIMIZER #2 (Final Answer) ----------
     final_completion = client.chat.completions.create(
-        model="gpt-4o-mini",
+        # model="gpt-4o-mini",
+        model="gemini-2.0-flash",
         messages=[
             {"role": "user", "content": optimizer_refine_prompt(request.message, draft_answer, critique)}
         ]
