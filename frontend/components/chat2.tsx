@@ -15,7 +15,7 @@ interface Message {
     timestamp: Date;
 }
 
-type ActionType = 'summary' | 'at least 20 mcqs' | 'brainstorm' | 'deep analysis' | 'comprehensive questions with answers' | 'presentation';
+type ActionType = 'summary' | 'at least 20 mcqs' | 'brainstorm' | 'deep analysis' | 'comprehensive questions with answers' | 'very high level outline';
 
 interface ActionOption {
     value: ActionType;
@@ -31,7 +31,7 @@ const ACTION_OPTIONS: ActionOption[] = [
     { value: 'brainstorm', label: 'Brainstorm', icon: '💡', description: 'Explore ideas & concepts' },
     { value: 'deep analysis', label: 'Deep Analysis', icon: '🔬', description: 'Detailed examination' },
     { value: 'comprehensive questions with answers', label: 'Comprehensive Questions', icon: '📊', description: 'Comprehensive Questions' },
-    { value: 'presentation', label: 'Presentation', icon: '👩‍🏫', description: 'Presentation' },
+    { value: 'very high level outline', label: 'High Level Outline', icon: '�', description: 'Outline' },
 ];
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -232,12 +232,10 @@ export default function Chat() {
                             <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-2xl shadow-lg shadow-emerald-900/50 mb-4">
                                 <Sparkles className="w-10 h-10 text-white" />
                             </div>
-                            <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent mb-2">
-                                MindHive AI
-                            </h1>
-                            <p className="text-gray-400 text-lg">
+                            <h3 className="text-lg font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent mb-2">
                                 Transform your lectures into insights
-                            </p>
+                            </h3>
+                           
                         </div>
 
                         {/* Upload Card */}
@@ -250,13 +248,13 @@ export default function Chat() {
                                     Upload Your Lecture
                                 </h2>
                                 <p className="text-gray-400">
-                                    Drop your PDF file here to begin
+                                    Drop your PDF/PPTX file here to begin
                                 </p>
                             </div>
 
                             <div className="space-y-4">
                                 <Label htmlFor="file-upload" className="text-sm font-medium text-gray-300">
-                                    Select PDF File
+                                    Select Lecture File
                                 </Label>
                                 <div className="relative">
                                     <label 
@@ -399,7 +397,7 @@ export default function Chat() {
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-bold flex items-center gap-2">
-                                            MindHive AI
+                                            NoteFusion AI
                                         </h2>
                                         <p className="text-sm text-white/80 truncate max-w-md">
                                             {uploadedFileName}

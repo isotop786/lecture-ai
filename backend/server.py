@@ -93,50 +93,6 @@ def is_valid_academic_document(pdf_text: str) -> bool:
     return is_academic_document_llm(pdf_text)
 
 
-# def extract_metadata(pdf_text: str) -> dict:
-#     response = client.chat.completions.create(
-#         # model="gpt-4o-mini",
-#         model="gemini-2.0-flash",
-#         messages=[
-#             {
-#                 "role": "system",
-#                 "content": """
-# You extract academic metadata from documents.
-
-# RULES:
-# - Use ONLY the provided text.
-# - Do NOT guess.
-# - If not found, return null.
-
-# Return valid JSON ONLY.
-# """
-#             },
-#             {
-#                 "role": "user",
-#                 "content": f"""
-# DOCUMENT TEXT:
-# {pdf_text[:6000]}
-
-# Extract:
-# - instructor_name
-# - institution_name
-# - course_title
-# - department
-
-# JSON FORMAT:
-# {{
-#   "instructor_name": string | null,
-#   "institution_name": string | null,
-#   "course_title": string | null,
-#   "department": string | null
-# }}
-# """
-#             }
-#         ],
-#         response_format={"type": "json_object"}
-#     )
-
-#     return json.loads(response.choices[0].message.content)
 
 def extract_metadata(pdf_text: str) -> dict:
     response = client.chat.completions.create(
@@ -207,12 +163,28 @@ def optimizer_prompt(pdf_text: str, user_question: str) -> str:
 You are a STRICT document-grounded academic assistant.
 
 RULES (MUST FOLLOW):
-1. You may ONLY answer using information in the PDF.
-2. You may generate answers using information in the PDF.
+1. You may ONLY answer using information in the document.
+2. You may generate answers using information in the document.
 3. Do NOT answer general questions.
 4. Do NOT speculate.
-5. If answer not found in PDF, reply EXACTLY:
+5. If answer not found in document, reply EXACTLY:
 "I can only answer questions based on the uploaded document."
+
+
+ALLOWED FORMATTING:
+- Bullet points and lists
+- Proper grammar and punctuation
+- Proper academic language
+- Use markdown formatting
+
+ALLOWED TOPICS:
+- Generating summary
+- Generating MCQs
+- Brainstorming
+- Deep analysis
+- Comprehensive questions with answers
+- Presentation
+- Chatting on the topics of the document
 
 
 PDF CONTENT:
@@ -230,6 +202,15 @@ def evaluator_prompt(pdf_text: str, user_question: str, draft_answer: str) -> st
     return f"""
 You are an evaluator reviewing an AI-generated answer.
 
+ALLOWED TOPICS:
+- Generating summary
+- Generating MCQs
+- Brainstorming
+- Deep analysis
+- Comprehensive questions with answers
+- Presentation
+- Chatting on the topics of the document
+
 PDF CONTENT:
 {pdf_text}
 
@@ -240,7 +221,7 @@ DRAFT ANSWER:
 {draft_answer}
 
 Evaluate:
-1. Accuracy vs PDF
+1. Accuracy vs document
 2. Completeness
 3. Clarity
 4. Hallucinations
@@ -261,6 +242,15 @@ Return:
 def optimizer_refine_prompt(user_question: str, draft_answer: str, critique: str) -> str:
     return f"""
 You are a Senior academic instructor improving an answer.
+
+ALLOWED TOPICS:
+- Generating summary
+- Generating MCQs
+- Brainstorming
+- Deep analysis
+- Comprehensive questions with answers
+- Presentation
+- Chatting on the topics of the document
 
 USER QUESTION:
 {user_question}

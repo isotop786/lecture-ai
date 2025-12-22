@@ -14,7 +14,7 @@ export default function Home() {
             </div>
             <h1 className="text-5xl font-bold mb-3">
               <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
-                MindHive
+                NoteFusion
               </span>
             </h1>
             <p className="text-gray-400 text-lg mb-6">
@@ -25,11 +25,11 @@ export default function Home() {
             <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
               <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-full text-sm text-gray-300">
                 <Brain className="w-4 h-4 text-emerald-400" />
-                Smart Analysis
+                In-Deepth & Accurate Analysis
               </div>
               <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-full text-sm text-gray-300">
                 <Zap className="w-4 h-4 text-teal-400" />
-                Instant Results
+                Quality Assurance
               </div>
               <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-full text-sm text-gray-300">
                 <Sparkles className="w-4 h-4 text-cyan-400" />
@@ -50,7 +50,7 @@ export default function Home() {
                Powered by Advanced AI Technology.
               </p>
               <p className="text-xs text-gray-500">
-                &copy; {new Date().getFullYear()}  MindHive AI. Transform your learning experience. Developed by <a href="https://www.linkedin.com/in/maruful-islam-92b9b4308/" target="_blank" rel="noopener noreferrer">Maruf</a>
+                &copy; {new Date().getFullYear()}  NoteFusion AI. Transform your learning experience. Developed by <a href="https://www.linkedin.com/in/maruful-islam-92b9b4308/" target="_blank" rel="noopener noreferrer">Maruf</a>
               </p>
             </div>
           </footer>
