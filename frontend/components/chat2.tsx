@@ -103,7 +103,7 @@ export default function Chat() {
         const file = e.target.files?.[0];
         if (file) {
             if (file.type !== 'application/pdf') {
-                alert('Please upload a PDF file');
+                alert('Please upload a PDF or PPTX file');
                 return;
             }
             uploadPdf(file);
@@ -248,7 +248,7 @@ export default function Chat() {
                                     Upload Your Lecture
                                 </h2>
                                 <p className="text-gray-400">
-                                    Drop your PDF/PPTX file here to begin
+                                    Drop your PDF file here to begin
                                 </p>
                             </div>
 

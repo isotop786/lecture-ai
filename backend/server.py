@@ -243,14 +243,7 @@ def optimizer_refine_prompt(user_question: str, draft_answer: str, critique: str
     return f"""
 You are a Senior academic instructor improving an answer.
 
-ALLOWED TOPICS:
-- Generating summary
-- Generating MCQs
-- Brainstorming
-- Deep analysis
-- Comprehensive questions with answers
-- Presentation
-- Chatting on the topics of the document
+
 
 USER QUESTION:
 {user_question}
