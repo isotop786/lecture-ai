@@ -13,6 +13,8 @@ from pypdf import PdfReader
 import io
 from anthropic import Anthropic
 from guardrails import check_forbidden, check_pii
+from botocore.exceptions import ClientError
+
 
 
 # Load environment variables
@@ -36,21 +38,57 @@ client = OpenAI(api_key=os.getenv("google_api_key"), base_url="https://generativ
 claude = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 # Memory directory
-MEMORY_DIR = Path("../memory")
-MEMORY_DIR.mkdir(exist_ok=True)
+# MEMORY_DIR = Path("../memory")
+# MEMORY_DIR.mkdir(exist_ok=True)
+
+# Memory storage configuration
+USE_S3 = os.getenv("USE_S3", "true").lower() == "true"
+S3_MEMORY_BUCKET = os.getenv("S3_MEMORY_BUCKET", "")
+MEMORY_DIR = Path("../memory") #os.getenv("MEMORY_DIR", "../memory")
+
+# Initialize S3 client if needed
+if USE_S3:
+    s3_client = boto3.client("s3")
+
 
 # Memory functions
+def get_memory_path(session_id: str) -> str:
+    return f"{session_id}.json"
+
 def load_conversation(session_id: str) -> List[Dict]:
-    file_path = MEMORY_DIR / f"{session_id}.json"
-    if file_path.exists():
-        with open(file_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return []
+    """Load conversation history from storage"""
+    if USE_S3:
+        try:
+            response = s3_client.get_object(Bucket=S3_MEMORY_BUCKET, Key=get_memory_path(session_id))
+            return json.loads(response["Body"].read().decode("utf-8"))
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "NoSuchKey":
+                return []
+            raise
+    else:
+        # Local file storage
+        file_path = os.path.join(MEMORY_DIR, get_memory_path(session_id))
+        if os.path.exists(file_path):
+            with open(file_path, "r") as f:
+                return json.load(f)
+        return []
+
 
 def save_conversation(session_id: str, messages: List[Dict]):
-    file_path = MEMORY_DIR / f"{session_id}.json"
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(messages, f, indent=2, ensure_ascii=False)
+    """Save conversation history to storage"""
+    if USE_S3:
+        s3_client.put_object(
+            Bucket=S3_MEMORY_BUCKET,
+            Key=get_memory_path(session_id),
+            Body=json.dumps(messages, indent=2),
+            ContentType="application/json",
+        )
+    else:
+        # Local file storage
+        os.makedirs(MEMORY_DIR, exist_ok=True)
+        file_path = os.path.join(MEMORY_DIR, get_memory_path(session_id))
+        with open(file_path, "w") as f:
+            json.dump(messages, f, indent=2)
 
 # ================= ACADEMIC CHECK =================
 def looks_academic_structurally(text: str) -> bool:
