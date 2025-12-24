@@ -23,7 +23,8 @@ load_dotenv(override=True)
 app = FastAPI()
 
 # Configure CORS
-origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+# origins = os.getenv("CORS_ORIGINS", "http://localhost:3000","https://notefusion-f401h83hb-isotop786s-projects.vercel.app").split(",")
+origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,https://notefusion-f401h83hb-isotop786s-projects.vercel.app,https://www.note-fusion.online,https://notefusion-omega.vercel.app").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -43,7 +44,7 @@ claude = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 # Memory storage configuration
 USE_S3 = os.getenv("USE_S3", "true").lower() == "true"
-S3_MEMORY_BUCKET = os.getenv("S3_MEMORY_BUCKET", "")
+S3_MEMORY_BUCKET = os.getenv("S3_MEMORY_BUCKET", "lecture-memory-852509885588")
 MEMORY_DIR = Path("../memory") #os.getenv("MEMORY_DIR", "../memory")
 
 # Initialize S3 client if needed
@@ -378,7 +379,7 @@ async def chat(request: ChatRequest):
         "s3",
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.getenv("AWS_REGION"),
+        region_name=os.getenv("AWS_REGION")
     )
     bucket = os.getenv("S3_BUCKET_NAME")
 
@@ -401,11 +402,11 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=400, detail="PDF has no readable text")
 
     ### ---------- GUARDRAIL: Pre-question relevance ----------
-    if not is_question_relevant(pdf_text, request.message):
-        return ChatResponse(
-            response="I can only answer questions related to the uploaded document.",
-            session_id=request.session_id or str(uuid.uuid4())
-        )
+    # if not is_question_relevant(pdf_text, request.message):
+    #     return ChatResponse(
+    #         response="I can only answer questions related to the uploaded document.",
+    #         session_id=request.session_id or str(uuid.uuid4())
+    #     )
 
     
     if not is_valid_academic_document(pdf_text):

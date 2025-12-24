@@ -34,7 +34,9 @@ const ACTION_OPTIONS: ActionOption[] = [
     { value: 'very high level outline', label: 'High Level Outline', icon: '�', description: 'Outline' },
 ];
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://0.0.0.0:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://fatvzmpim2.eu-west-1.awsapprunner.com';
 
 export default function Chat() {
     // State
