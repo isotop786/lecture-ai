@@ -392,7 +392,7 @@ export default function Chat() {
                     <div className="flex flex-col h-full bg-gradient-to-br from-slate-800/90 to-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-700 overflow-hidden">
                         {/* Header */}
                         <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-cyan-700 text-white p-5">
-                            <div className="flex items-center justify-between">
+                            <div className="flex sm:flex-row flex-col items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
                                         <Bot className="w-6 h-6" />
@@ -402,15 +402,15 @@ export default function Chat() {
                                             NoteFusion AI
                                         </h2>
                                         <p className="text-sm text-white/80 truncate max-w-md">
-                                            {uploadedFileName}
+                                            {uploadedFileName.slice(0, 20)}...
                                         </p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={resetChat}
-                                    className="flex items-center gap-2 text-sm px-3 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg transition-all"
+                                    className="flex mt-3 items-center gap-2 text-sm px-3 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg transition-all"
                                 >
-                                    <RotateCcw className="w-4 h-4" />
+                                    <RotateCcw className="w-4 h-4 " />
                                     New Session
                                 </button>
                             </div>
