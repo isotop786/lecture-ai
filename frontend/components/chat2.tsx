@@ -224,10 +224,10 @@ export default function Chat() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-gradient-to-br from-slate-900 via-gray-900 to-zinc-900">
+        <div className="flex flex-col h-full bg-gradient-to-br from-slate-900 via-gray-900 to-zinc-900 overflow-x-hidden">
             {/* Upload Step */}
             {currentStep === 'upload' && (
-                <div className="flex items-center justify-center min-h-screen p-4">
+                <div className="flex items-center justify-center  p-4">
                     <div className="w-full max-w-lg">
                         {/* Header */}
                         <div className="text-center mb-8">
@@ -361,7 +361,7 @@ export default function Chat() {
                                     ))}
                                 </div>
 
-                                <div className="flex gap-3 pt-4">
+                                <div className="flex flex-col sm:flex-row gap-3 pt-4">
                                     <button
                                         type="button"
                                         onClick={resetChat}
@@ -408,7 +408,7 @@ export default function Chat() {
                                 </div>
                                 <button
                                     onClick={resetChat}
-                                    className="flex items-center gap-2 text-sm px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg transition-all"
+                                    className="flex items-center gap-2 text-sm px-3 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg transition-all"
                                 >
                                     <RotateCcw className="w-4 h-4" />
                                     New Session
@@ -417,11 +417,11 @@ export default function Chat() {
                         </div>
 
                         {/* Messages */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-br from-slate-900 via-gray-900 to-zinc-900">
+                        <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-6 bg-gradient-to-br from-slate-900 via-gray-900 to-zinc-900">
                             {messages.length === 0 && !isLoading && (
                                 <div className="text-center mt-12">
                                     <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-900/50 to-teal-900/50 rounded-2xl mb-4 border border-emerald-800/50">
-                                        <Bot className="w-10 h-10 text-emerald-400" />
+                                        <Bot className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-400" />
                                     </div>
                                     <h3 className="text-2xl font-bold text-white mb-2">Ready to Assist!</h3>
                                     <p className="text-gray-400">Ask me anything about your lecture</p>
@@ -444,7 +444,8 @@ export default function Chat() {
                                     )}
 
                                     <div
-                                        className={`max-w-[75%] rounded-2xl p-4 shadow-lg ${
+                                        // className={`rounded-2xl p-4 shadow-lg ${
+                                        className={`max-w-[100%] rounded-2xl p-4 shadow-lg ${
                                             message.role === 'user'
                                                 ? 'bg-gradient-to-br from-cyan-700 to-blue-700 text-white shadow-cyan-900/50'
                                                 : 'bg-slate-800 border border-slate-700 text-gray-100'
@@ -498,7 +499,7 @@ export default function Chat() {
 
                         {/* Input */}
                         <div className="border-t border-slate-700 p-5 bg-slate-800/90">
-                            <div className="flex gap-3">
+                            <div className="flex gap-3 px-2">
                                 <input
                                     type="text"
                                     value={input}
