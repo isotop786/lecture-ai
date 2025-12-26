@@ -1,9 +1,7 @@
 # lecture-ai
-Live https://notefusion-omega.vercel.app
 
 Lecture AI tool 🚀
-👉 https://notefusion-omega.vercel.app
-  https://www.note-fusion.online
+👉 https://www.note-fusion.online
 
 It helps you study smarter with features like:
 
