@@ -1,0 +1,111 @@
+services:
+  # Web Service for FastAPI Application
+  - type: web
+    name: lecture-assistant-api
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    
+    # Health check configuration
+    healthCheckPath: /health
+    
+    # Auto-deploy from main branch
+    branch: main
+    
+    # Environment variables
+    envVars:
+      # Application Settings
+      - key: APP_ENV
+        value: production
+      
+      - key: DEBUG
+        value: false
+      
+      # CORS Configuration
+      - key: CORS_ORIGINS
+        value: https://www.note-fusion.online,https://note-fusion.online,https://notefusion-omega.vercel.app
+      
+      # API Keys (use secrets in Render dashboard)
+      - key: OPENAI_API_KEY
+        sync: false
+      
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      
+      - key: google_api_key
+        sync: false
+      
+      # AWS Configuration
+      - key: AWS_REGION
+        value: eu-west-1
+      
+      - key: DEFAULT_AWS_REGION
+        value: eu-west-1
+      
+      - key: AWS_ACCOUNT_ID
+        sync: false
+      
+      - key: ACCESS_KEY_ID
+        sync: false
+      
+      - key: SECRET_ACCESS_KEY
+        sync: false
+      
+      # S3 Configuration
+      - key: S3_BUCKET_NAME
+        sync: false
+      
+      - key: S3_MEMORY_BUCKET
+        value: lecture-memory-852509885588
+      
+      - key: USE_S3
+        value: true
+      
+      # Database (if needed)
+      - key: DB_URL
+        sync: false
+    
+    # Auto scaling configuration
+    autoDeploy: true
+    
+    # Number of instances
+    numInstances: 1
+    
+    # Custom domains (optional)
+    # domains:
+    #   - api.note-fusion.online
+
+# Alternative: Background Worker (if needed)
+# - type: worker
+#   name: lecture-assistant-worker
+#   runtime: docker
+#   dockerfilePath: ./Dockerfile
+#   dockerContext: .
+#   branch: main
+#   
+#   envVars:
+#     # Same as above
+#   
+#   # Worker-specific command
+#   startCommand: python -m app.worker
+
+# Database service (if you need PostgreSQL)
+# - type: pserv
+#   name: lecture-assistant-db
+#   plan: starter
+#   region: frankfurt
+#   databaseName: lecture_db
+#   databaseUser: lecture_user
+#   # ipAllowList:
+#   #   - source: 0.0.0.0/0
+#   #     description: Allow all (use specific IPs in production)
+
+# Redis cache (optional)
+# - type: redis
+#   name: lecture-assistant-cache
+#   plan: starter
+#   region: frankfurt
+#   maxmemoryPolicy: allkeys-lru
+#   ipAllowList: []
